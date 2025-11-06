@@ -17,11 +17,11 @@ ENV CHROME_BIN=/usr/bin/chromium-browser \
 # Create app directory
 WORKDIR /app
 
-# Copy application files
-COPY requirements.txt .
-COPY src/ ./src/
-COPY cli.py .
-COPY api_server.py .
+# Copy application files from parent directory
+COPY ../requirements.txt .
+COPY ../src/ ./src/
+COPY ../cli.py .
+COPY ../api_server.py .
 COPY run.sh .
 
 # Install Python dependencies
