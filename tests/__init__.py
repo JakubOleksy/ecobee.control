@@ -1,3 +1,0 @@
-"""
-Empty test init file
-"""

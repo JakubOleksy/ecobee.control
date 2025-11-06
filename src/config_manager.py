@@ -31,23 +31,32 @@ class ConfigManager:
         self.config_dir = config_dir
         self.config_data: Dict[str, Any] = {}
         
-        # Load configuration
-        self._load_environment()
+        # Load configuration (config files first, then env vars override)
         self._load_config_files()
+        self._load_environment()
 
     def _load_environment(self) -> None:
-        """Load environment variables from .env file and system environment."""
+        """Load environment variables from .env and .secrets files and system environment."""
         try:
-            # Load from .env file if it exists
+            # Load from .env file if it exists (for configuration)
             env_file = os.path.join(os.path.dirname(self.config_dir), '.env')
             if os.path.exists(env_file):
                 load_dotenv(env_file)
                 self.logger.info(f"Loaded environment from: {env_file}")
             
+            # Load from .secrets file if it exists (for credentials - not checked into git)
+            secrets_file = os.path.join(os.path.dirname(self.config_dir), '.secrets')
+            if os.path.exists(secrets_file):
+                load_dotenv(secrets_file, override=True)  # Override with secrets
+                self.logger.info(f"Loaded secrets from: {secrets_file}")
+            
             # Map environment variables to config keys
             env_mappings = {
                 'ECOBEE_USERNAME': 'ecobee.username',
                 'ECOBEE_PASSWORD': 'ecobee.password',
+                'ECOBEE_2FA_CODE': 'ecobee.two_factor_code',
+                'ECOBEE_ONEPASSWORD_ITEM': 'ecobee.onepassword_item',
+                'ECOBEE_THERMOSTAT_NAME': 'ecobee.thermostat_name',
                 'WEBDRIVER_HEADLESS': 'webdriver.headless',
                 'WEBDRIVER_IMPLICIT_WAIT': 'webdriver.implicit_wait',
                 'WEBDRIVER_PAGE_LOAD_TIMEOUT': 'webdriver.page_load_timeout',

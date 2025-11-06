@@ -29,51 +29,59 @@ def setup_logging(log_level: str = 'INFO'):
     )
 
 
-def cmd_status(args, automation: EcobeeAutomation) -> int:
-    """Get and display current thermostat status."""
+def cmd_main_floor_aux(args, automation: EcobeeAutomation) -> int:
+    """Set Main Floor thermostat heating mode to Aux."""
     try:
-        status = automation.get_heating_status()
-        
-        print("=== Ecobee Thermostat Status ===")
-        print(f"Current Temperature: {status.current_temp}°F" if status.current_temp else "Current Temperature: Unknown")
-        print(f"Target Temperature:  {status.target_temp}°F" if status.target_temp else "Target Temperature: Unknown")
-        print(f"Mode:                {status.mode}" if status.mode else "Mode: Unknown")
-        print(f"Heating Active:      {status.is_heating}" if status.is_heating is not None else "Heating Active: Unknown")
-        
-        return 0
-        
-    except Exception as e:
-        print(f"Error getting status: {e}")
-        return 1
-
-
-def cmd_set_mode(args, automation: EcobeeAutomation) -> int:
-    """Set heating mode."""
-    try:
-        if automation.set_heating_mode(args.mode):
-            print(f"Successfully set mode to: {args.mode}")
+        if automation.set_main_floor_aux():
+            print(f"Successfully set Main Floor to: aux")
             return 0
         else:
-            print(f"Failed to set mode to: {args.mode}")
+            print(f"Failed to set Main Floor to: aux")
             return 1
-            
     except Exception as e:
         print(f"Error setting mode: {e}")
         return 1
 
 
-def cmd_set_temp(args, automation: EcobeeAutomation) -> int:
-    """Set target temperature."""
+def cmd_main_floor_heat(args, automation: EcobeeAutomation) -> int:
+    """Set Main Floor thermostat heating mode to Heat."""
     try:
-        if automation.set_temperature(args.temperature):
-            print(f"Successfully set temperature to: {args.temperature}°F")
+        if automation.set_main_floor_heat():
+            print(f"Successfully set Main Floor to: heat")
             return 0
         else:
-            print(f"Failed to set temperature to: {args.temperature}°F")
+            print(f"Failed to set Main Floor to: heat")
             return 1
-            
     except Exception as e:
-        print(f"Error setting temperature: {e}")
+        print(f"Error setting mode: {e}")
+        return 1
+
+
+def cmd_upstairs_aux(args, automation: EcobeeAutomation) -> int:
+    """Set Upstairs thermostat heating mode to Aux."""
+    try:
+        if automation.set_upstairs_aux():
+            print(f"Successfully set Upstairs to: aux")
+            return 0
+        else:
+            print(f"Failed to set Upstairs to: aux")
+            return 1
+    except Exception as e:
+        print(f"Error setting mode: {e}")
+        return 1
+
+
+def cmd_upstairs_heat(args, automation: EcobeeAutomation) -> int:
+    """Set Upstairs thermostat heating mode to Heat."""
+    try:
+        if automation.set_upstairs_heat():
+            print(f"Successfully set Upstairs to: heat")
+            return 0
+        else:
+            print(f"Failed to set Upstairs to: heat")
+            return 1
+    except Exception as e:
+        print(f"Error setting mode: {e}")
         return 1
 
 
@@ -97,22 +105,40 @@ Examples:
     parser.add_argument('--headless', type=str, choices=['true', 'false'],
                        help='Run browser in headless mode')
     parser.add_argument('--config-dir', help='Path to configuration directory')
+    parser = argparse.ArgumentParser(
+        description='Ecobee Web Automation CLI - Control heating mode for both thermostats',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s main-floor-aux           # Set Main Floor to Aux
+  %(prog)s main-floor-heat          # Set Main Floor to Heat
+  %(prog)s upstairs-aux             # Set Upstairs to Aux
+  %(prog)s upstairs-heat            # Set Upstairs to Heat
+  %(prog)s --headless=true main-floor-aux  # Set Main Floor to Aux with headless browser
+        """
+    )
+    
+    # Global options
+    parser.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+                       default='INFO', help='Set logging level')
+    parser.add_argument('--headless', type=str, choices=['true', 'false'],
+                       help='Run browser in headless mode')
+    parser.add_argument('--config-dir', help='Path to configuration directory')
     
     # Subcommands
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
-    # Status command
-    status_parser = subparsers.add_parser('status', help='Get current thermostat status')
+    # Main Floor Aux command
+    main_floor_aux_parser = subparsers.add_parser('main-floor-aux', help='Set Main Floor heating mode to Aux')
     
-    # Set mode command
-    mode_parser = subparsers.add_parser('set-mode', help='Set heating mode')
-    mode_parser.add_argument('mode', choices=['heat', 'cool', 'auto', 'off'],
-                           help='Heating mode to set')
+    # Main Floor Heat command
+    main_floor_heat_parser = subparsers.add_parser('main-floor-heat', help='Set Main Floor heating mode to Heat')
     
-    # Set temperature command
-    temp_parser = subparsers.add_parser('set-temp', help='Set target temperature')
-    temp_parser.add_argument('temperature', type=float,
-                           help='Target temperature in Fahrenheit')
+    # Upstairs Aux command
+    upstairs_aux_parser = subparsers.add_parser('upstairs-aux', help='Set Upstairs heating mode to Aux')
+    
+    # Upstairs Heat command
+    upstairs_heat_parser = subparsers.add_parser('upstairs-heat', help='Set Upstairs heating mode to Heat')
     
     args = parser.parse_args()
     
@@ -134,12 +160,12 @@ Examples:
             config.set('webdriver.headless', args.headless.lower() == 'true')
         
         # Validate required configuration
-        required_config = ['ecobee.username', 'ecobee.password']
-        try:
-            config.validate_required(required_config)
-        except ValueError as e:
-            logger.error(f"Configuration error: {e}")
-            logger.error("Please set ECOBEE_USERNAME and ECOBEE_PASSWORD in your .env file")
+        has_credentials = config.get('ecobee.username') is not None and config.get('ecobee.password') is not None
+        
+        if not has_credentials:
+            logger.error("Configuration error: No credentials configured")
+            logger.error("Please set ECOBEE_USERNAME and ECOBEE_PASSWORD in your .secrets file")
+            logger.error("(Create /Users/jakuboleksy/github/ecobee.control/.secrets if it doesn't exist)")
             return 1
         
         # Run automation
@@ -153,22 +179,17 @@ Examples:
             logger.info("Login successful")
             
             # Execute command
-            if args.command == 'status':
-                return cmd_status(args, automation)
-            elif args.command == 'set-mode':
-                return cmd_set_mode(args, automation)
-            elif args.command == 'set-temp':
-                return cmd_set_temp(args, automation)
+            if args.command == 'main-floor-aux':
+                return cmd_main_floor_aux(args, automation)
+            elif args.command == 'main-floor-heat':
+                return cmd_main_floor_heat(args, automation)
+            elif args.command == 'upstairs-aux':
+                return cmd_upstairs_aux(args, automation)
+            elif args.command == 'upstairs-heat':
+                return cmd_upstairs_heat(args, automation)
             else:
                 logger.error(f"Unknown command: {args.command}")
                 return 1
-                
-    except EcobeeAutomationError as e:
-        logger.error(f"Automation error: {e}")
-        return 1
-    except KeyboardInterrupt:
-        logger.info("Operation cancelled by user")
-        return 1
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         return 1
