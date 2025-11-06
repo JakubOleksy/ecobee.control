@@ -1,0 +1,45 @@
+# Default Configuration for Ecobee Automation
+
+# Ecobee Web Interface
+ecobee:
+  base_url: "https://www.ecobee.com"
+  login_url: "https://www.ecobee.com/consumerportal/index.html"
+  portal_url: "https://www.ecobee.com/home/index.html"
+
+# WebDriver Configuration
+webdriver:
+  headless: true
+  implicit_wait: 10
+  page_load_timeout: 30
+  window_size: "1920,1080"
+  user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+
+# Automation Settings
+automation:
+  delay: 2  # Seconds to wait between actions
+  max_retry_attempts: 3
+  screenshot_on_error: true
+  temperature_step: 1  # Degrees per click
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/ecobee_automation.log"
+
+# Web Element Selectors (may need updating based on actual ecobee UI)
+selectors:
+  username_field: "#userName"
+  password_field: "#password"
+  login_button: "#loginButton"
+  thermostat_card: ".thermostat-card"
+  current_temp: ".current-temp"
+  target_temp: ".target-temp"
+  mode_selector: ".mode-selector"
+  heating_mode: "[data-mode='heat']"
+  cooling_mode: "[data-mode='cool']"
+  auto_mode: "[data-mode='auto']"
+  off_mode: "[data-mode='off']"
+  temp_up: ".temp-up"
+  temp_down: ".temp-down"
+  save_button: ".save-changes"

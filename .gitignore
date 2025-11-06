@@ -75,9 +75,3 @@ drivers/
 # Configuration files with sensitive data
 config/local.yml
 config/secrets.yml
-# Home Assistant Add-on - duplicated files (copied from root for Docker build)
-addon/src/
-addon/cli.py
-addon/api_server.py
-addon/requirements.txt
-addon/default.yml
