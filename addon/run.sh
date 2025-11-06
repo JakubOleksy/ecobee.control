@@ -19,23 +19,16 @@ bashio::log.info "API will be available on port ${API_PORT}"
 
 # Test DNS resolution
 bashio::log.info "Testing DNS resolution..."
-if nslookup auth.ecobee.com > /dev/null 2>&1; then
-    bashio::log.info "DNS resolution working"
+bashio::log.info "Current /etc/resolv.conf:"
+cat /etc/resolv.conf
+
+# Test with getent which uses system resolver
+if getent hosts auth.ecobee.com > /dev/null 2>&1; then
+    bashio::log.info "DNS resolution working (getent test passed)"
+elif nslookup auth.ecobee.com 172.30.32.3 > /dev/null 2>&1; then
+    bashio::log.info "DNS resolution working (nslookup with explicit DNS passed)"
 else
-    bashio::log.warning "DNS resolution failed - checking /etc/resolv.conf"
-    cat /etc/resolv.conf || bashio::log.error "Cannot read /etc/resolv.conf"
-    
-    # Try to fix DNS by using common public DNS servers
-    bashio::log.info "Attempting to configure DNS manually..."
-    echo "nameserver 8.8.8.8" > /etc/resolv.conf
-    echo "nameserver 1.1.1.1" >> /etc/resolv.conf
-    
-    # Test again
-    if nslookup auth.ecobee.com > /dev/null 2>&1; then
-        bashio::log.info "DNS resolution now working after manual configuration"
-    else
-        bashio::log.error "DNS still not working - this may cause issues"
-    fi
+    bashio::log.error "DNS resolution failed - automation may not work"
 fi
 
 # Start the API server
