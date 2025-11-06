@@ -26,3 +26,4 @@ ports:
   5000/tcp: 5000
 ports_description:
   5000/tcp: "REST API for Home Assistant integration"
+host_network: false
