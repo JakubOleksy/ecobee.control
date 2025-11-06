@@ -17,6 +17,15 @@ EOF
 bashio::log.info "Starting Ecobee Web Control API server..."
 bashio::log.info "API will be available on port ${API_PORT}"
 
+# Test DNS resolution
+bashio::log.info "Testing DNS resolution..."
+if nslookup auth.ecobee.com > /dev/null 2>&1; then
+    bashio::log.info "DNS resolution working"
+else
+    bashio::log.warning "DNS resolution failed - checking /etc/resolv.conf"
+    cat /etc/resolv.conf || bashio::log.error "Cannot read /etc/resolv.conf"
+fi
+
 # Start the API server
 cd /app
 exec python3 api_server.py
