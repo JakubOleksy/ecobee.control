@@ -7,7 +7,9 @@ RUN apk add --no-cache \
     py3-pip \
     chromium \
     chromium-chromedriver \
-    tzdata
+    tzdata \
+    bind-tools \
+    ca-certificates
 
 # Set environment for headless Chrome
 ENV CHROME_BIN=/usr/bin/chromium-browser \

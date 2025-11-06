@@ -87,10 +87,7 @@ class EcobeeAutomation:
             chrome_options.add_argument('--disable-gpu')
             chrome_options.add_argument('--window-size=1920,1080')
             chrome_options.add_argument('--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36')
-            
-            # Force Chrome to use system DNS resolver (fixes Docker DNS issues)
-            chrome_options.add_argument('--disable-features=NetworkService')
-            chrome_options.add_argument('--disable-features=VizDisplayCompositor')
+            chrome_options.add_argument('--remote-debugging-port=0')
             
             # Detect Chrome/Chromium binary location
             chrome_binary = os.environ.get('CHROME_BIN')
