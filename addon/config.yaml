@@ -1,0 +1,29 @@
+name: "Ecobee Web Control"
+version: "1.0.0"
+slug: "ecobee_web_control"
+description: "Control Ecobee thermostats via web interface automation"
+url: "https://github.com/JakubOleksy/ecobee.control"
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+init: false
+options:
+  ecobee_username: ""
+  ecobee_password: ""
+  webdriver_headless: true
+  log_level: "INFO"
+  api_port: 5000
+schema:
+  ecobee_username: str
+  ecobee_password: password
+  webdriver_headless: bool
+  log_level: list(DEBUG|INFO|WARNING|ERROR)?
+  api_port: port
+ports:
+  5000/tcp: 5000
+ports_description:
+  5000/tcp: "REST API for Home Assistant integration"
+image: "ghcr.io/{arch}-ecobee-web-control"

@@ -1,22 +1,43 @@
-# Ecobee Web Automation
+# Ecobee Web Control
 
-A Python-based automation tool for controlling ecobee thermostats through the web interface using Selenium WebDriver.
+A Python-based automation tool for controlling ecobee thermostats through the web interface using Selenium WebDriver. Available as a Home Assistant Add-on or standalone CLI tool.
 
 ## Features
 
+- **Home Assistant Integration**: Available as a Home Assistant add-on with REST API
+- **Multiple Thermostats**: Control Main Floor and Upstairs thermostats independently
 - **Web UI Automation**: Automated navigation of the ecobee web portal
-- **Heating System Control**: Change heating modes (heat, cool, auto, off)
-- **Temperature Management**: Set target temperatures programmatically
-- **Status Monitoring**: Retrieve current thermostat status and settings
+- **Mode Switching**: Switch between Heat and Aux Heat modes
+- **Headless Operation**: Runs in background without visible browser
 - **Robust Error Handling**: Comprehensive error handling with retry logic
 - **Configurable Settings**: Flexible configuration through environment variables and YAML files
 - **Logging**: Detailed logging for debugging and monitoring
 - **Screenshot Capture**: Automatic screenshots on errors for debugging
 
-## Project Structure
+## Installation Options
+
+### Option 1: Home Assistant Add-on (Recommended)
+
+1. Add this repository to your Home Assistant add-on store:
+   - Navigate to **Supervisor** → **Add-on Store**
+   - Click the 3-dot menu → **Repositories**
+   - Add: `https://github.com/JakubOleksy/ecobee.control`
+   - Find "Ecobee Web Control" and click **Install**
+
+2. Configure the add-on with your Ecobee credentials
+3. Start the add-on
+4. Add REST commands to your `configuration.yaml` (see [addon/DOCS.md](addon/DOCS.md))
+
+### Option 2: Standalone CLI Tool
 
 ```
-ecobee-web-automation/
+ecobee.control/
+├── addon/                       # Home Assistant Add-on files
+│   ├── config.yaml             # Add-on configuration
+│   ├── Dockerfile              # Container build instructions
+│   ├── run.sh                  # Add-on startup script
+│   ├── DOCS.md                 # Add-on documentation
+│   └── README.md               # Add-on readme
 ├── .github/
 │   └── copilot-instructions.md  # Project guidelines and instructions
 ├── src/
@@ -26,15 +47,18 @@ ecobee-web-automation/
 │   └── exceptions.py            # Custom exception classes
 ├── config/
 │   └── default.yml              # Default configuration settings
-├── tests/                       # Unit tests (to be implemented)
-├── logs/                        # Application logs
+├── cli.py                       # Command-line interface
+├── api_server.py                # REST API server (for add-on)
 ├── requirements.txt             # Python dependencies
-├── .env.template               # Environment variables template
-├── .gitignore                  # Git ignore rules
+├── .env                         # Environment configuration
+├── .secrets                     # Credentials (gitignored)
+├── repository.json              # Home Assistant repository config
 └── README.md                   # This file
 ```
 
-## Prerequisites
+## Prerequisites (Standalone CLI)
+
+## Project Structure
 
 - Python 3.8 or higher
 - Chrome browser installed
