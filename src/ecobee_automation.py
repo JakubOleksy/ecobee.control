@@ -88,16 +88,27 @@ class EcobeeAutomation:
             chrome_options.add_argument('--window-size=1920,1080')
             chrome_options.add_argument('--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36')
             
-            # Get chromedriver path and fix the known webdriver-manager bug
-            driver_path = ChromeDriverManager().install()
+            # Detect Chrome/Chromium binary location
+            chrome_binary = os.environ.get('CHROME_BIN')
+            if chrome_binary and os.path.exists(chrome_binary):
+                chrome_options.binary_location = chrome_binary
+                self.logger.info(f"Using Chrome binary: {chrome_binary}")
             
-            # Workaround for webdriver-manager bug that points to wrong file
-            if 'THIRD_PARTY_NOTICES' in driver_path or 'LICENSE' in driver_path:
-                # Extract the directory and point to actual chromedriver
-                import os
-                driver_dir = os.path.dirname(driver_path)
-                driver_path = os.path.join(driver_dir, 'chromedriver')
-                self.logger.info(f"Fixed chromedriver path to: {driver_path}")
+            # Get chromedriver path
+            chromedriver_path = os.environ.get('CHROMEDRIVER_PATH')
+            if chromedriver_path and os.path.exists(chromedriver_path):
+                driver_path = chromedriver_path
+                self.logger.info(f"Using chromedriver from environment: {driver_path}")
+            else:
+                # Fall back to webdriver-manager
+                driver_path = ChromeDriverManager().install()
+                
+                # Workaround for webdriver-manager bug that points to wrong file
+                if 'THIRD_PARTY_NOTICES' in driver_path or 'LICENSE' in driver_path:
+                    # Extract the directory and point to actual chromedriver
+                    driver_dir = os.path.dirname(driver_path)
+                    driver_path = os.path.join(driver_dir, 'chromedriver')
+                    self.logger.info(f"Fixed chromedriver path to: {driver_path}")
             
             service = Service(driver_path)
             self.driver = webdriver.Chrome(service=service, options=chrome_options)
