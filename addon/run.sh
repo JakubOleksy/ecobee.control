@@ -24,6 +24,18 @@ if nslookup auth.ecobee.com > /dev/null 2>&1; then
 else
     bashio::log.warning "DNS resolution failed - checking /etc/resolv.conf"
     cat /etc/resolv.conf || bashio::log.error "Cannot read /etc/resolv.conf"
+    
+    # Try to fix DNS by using common public DNS servers
+    bashio::log.info "Attempting to configure DNS manually..."
+    echo "nameserver 8.8.8.8" > /etc/resolv.conf
+    echo "nameserver 1.1.1.1" >> /etc/resolv.conf
+    
+    # Test again
+    if nslookup auth.ecobee.com > /dev/null 2>&1; then
+        bashio::log.info "DNS resolution now working after manual configuration"
+    else
+        bashio::log.error "DNS still not working - this may cause issues"
+    fi
 fi
 
 # Start the API server
