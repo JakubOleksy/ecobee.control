@@ -38,27 +38,29 @@ def run_cli_command(command):
     
     try:
         logger.info(f"Executing command: {command}")
+        logger.info(f"CLI path: {CLI_PATH}")
+        logger.info(f"Working directory: {os.path.dirname(__file__)}")
+        
+        # Run with combined stderr and stdout
         result = subprocess.run(
             ['python3', CLI_PATH, command],
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
             timeout=120,
             cwd=os.path.dirname(__file__)
         )
         
-        # Log both stdout and stderr for debugging
-        if result.stdout:
-            logger.info(f"Command stdout: {result.stdout}")
-        if result.stderr:
-            logger.warning(f"Command stderr: {result.stderr}")
+        # Log the full output
+        logger.info(f"Command return code: {result.returncode}")
+        logger.info(f"Command output:\n{result.stdout}")
         
         if result.returncode == 0:
             logger.info(f"Command succeeded: {command}")
             return {'success': True, 'output': result.stdout}, 200
         else:
-            error_msg = result.stderr or result.stdout or 'Unknown error'
-            logger.error(f"Command failed with return code {result.returncode}: {error_msg}")
-            return {'success': False, 'error': error_msg, 'return_code': result.returncode}, 500
+            logger.error(f"Command failed with return code {result.returncode}")
+            return {'success': False, 'error': result.stdout, 'return_code': result.returncode}, 500
             
     except subprocess.TimeoutExpired:
         logger.error(f"Command timed out: {command}")
