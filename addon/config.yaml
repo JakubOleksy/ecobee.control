@@ -12,6 +12,7 @@ arch:
 init: false
 hassio_api: true
 hassio_role: default
+host_network: true
 options:
   ecobee_username: ""
   ecobee_password: ""
@@ -24,7 +25,4 @@ schema:
   webdriver_headless: bool
   log_level: list(DEBUG|INFO|WARNING|ERROR)?
   api_port: port
-ports:
-  5000/tcp: 5000
-ports_description:
-  5000/tcp: "REST API for Home Assistant integration"
+host_network: true
