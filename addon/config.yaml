@@ -10,6 +10,8 @@ arch:
   - armv7
   - i386
 init: false
+hassio_api: true
+hassio_role: default
 options:
   ecobee_username: ""
   ecobee_password: ""
@@ -26,4 +28,3 @@ ports:
   5000/tcp: 5000
 ports_description:
   5000/tcp: "REST API for Home Assistant integration"
-host_network: false
