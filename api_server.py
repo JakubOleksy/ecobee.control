@@ -46,18 +46,25 @@ def run_cli_command(command):
             cwd=os.path.dirname(__file__)
         )
         
+        # Log both stdout and stderr for debugging
+        if result.stdout:
+            logger.info(f"Command stdout: {result.stdout}")
+        if result.stderr:
+            logger.warning(f"Command stderr: {result.stderr}")
+        
         if result.returncode == 0:
             logger.info(f"Command succeeded: {command}")
             return {'success': True, 'output': result.stdout}, 200
         else:
-            logger.error(f"Command failed: {result.stderr}")
-            return {'success': False, 'error': result.stderr}, 500
+            error_msg = result.stderr or result.stdout or 'Unknown error'
+            logger.error(f"Command failed with return code {result.returncode}: {error_msg}")
+            return {'success': False, 'error': error_msg, 'return_code': result.returncode}, 500
             
     except subprocess.TimeoutExpired:
         logger.error(f"Command timed out: {command}")
         return {'success': False, 'error': 'Command timed out'}, 500
     except Exception as e:
-        logger.error(f"Error running command: {e}")
+        logger.error(f"Error running command: {e}", exc_info=True)
         return {'success': False, 'error': str(e)}, 500
     finally:
         automation_lock.release()
