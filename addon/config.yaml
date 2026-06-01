@@ -16,12 +16,14 @@ host_network: true
 options:
   ecobee_username: ""
   ecobee_password: ""
+  ecobee_totp_secret: ""
   webdriver_headless: true
   log_level: "INFO"
   api_port: 5000
 schema:
   ecobee_username: str
   ecobee_password: password
+  ecobee_totp_secret: password?
   webdriver_headless: bool
   log_level: list(DEBUG|INFO|WARNING|ERROR)?
   api_port: port

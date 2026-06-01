@@ -13,6 +13,7 @@ import subprocess
 import json
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
+import pyotp
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -210,12 +211,25 @@ class EcobeeAutomation:
             time.sleep(2)
             self.logger.info(f"After login, current URL: {self.driver.current_url}")
             
+            # Handle MFA/TOTP challenge
+            if 'mfa-otp-challenge' in self.driver.current_url:
+                self.logger.info("MFA challenge detected, generating TOTP code...")
+                if not self._handle_mfa_challenge():
+                    self.logger.error("MFA challenge failed")
+                    self._take_screenshot("mfa_failed")
+                    return False
+                time.sleep(2)
+                self.logger.info(f"After MFA, current URL: {self.driver.current_url}")
+            
             # Check if login was successful (URL should change to consumerportal)
             if 'auth.ecobee.com' in self.driver.current_url.lower():
                 self.logger.warning("Still on auth page, login may have failed")
                 self._take_screenshot("login_verification_needed")
                 # Don't fail immediately, might just need more time
                 time.sleep(5)
+                if 'auth.ecobee.com' in self.driver.current_url.lower():
+                    self.logger.error("Login failed - still on auth page after waiting")
+                    return False
             
             self.logger.info("Login successful")
             return True
@@ -225,9 +239,76 @@ class EcobeeAutomation:
             self._take_screenshot("login_error")
             return False
 
+    def _handle_mfa_challenge(self) -> bool:
+        """
+        Handle the MFA/TOTP challenge page.
+        Generates TOTP code from the configured secret and submits it.
+        
+        Returns:
+            bool: True if MFA was completed successfully
+        """
+        try:
+            totp_secret = self.config.get('ecobee.totp_secret')
+            if not totp_secret:
+                self.logger.error("No TOTP secret configured (set ECOBEE_TOTP_SECRET)")
+                return False
+            
+            # Generate current TOTP code
+            totp = pyotp.TOTP(totp_secret)
+            code = totp.now()
+            self.logger.info(f"Generated TOTP code: {code[:2]}****")
+            
+            # Find the OTP input field
+            otp_field = self._find_input_field(['code', 'otp', 'totp', 'mfa', 'verification'], timeout=10)
+            if not otp_field:
+                # Try finding any visible text input
+                inputs = self.driver.find_elements(By.TAG_NAME, 'input')
+                for inp in inputs:
+                    input_type = (inp.get_attribute('type') or '').lower()
+                    if input_type in ('text', 'tel', 'number', '') and inp.is_displayed():
+                        otp_field = inp
+                        self.logger.info(f"Using visible input field for OTP (type={input_type})")
+                        break
+            
+            if not otp_field:
+                self.logger.error("Could not find OTP input field")
+                self._take_screenshot("mfa_no_input_field")
+                self._log_page_structure()
+                return False
+            
+            # Enter the code
+            otp_field.clear()
+            otp_field.send_keys(code)
+            time.sleep(1)
+            
+            # Submit
+            submit_button = self._find_submit_button()
+            if submit_button:
+                submit_button.click()
+            else:
+                # Try pressing Enter
+                from selenium.webdriver.common.keys import Keys
+                otp_field.send_keys(Keys.RETURN)
+            
+            time.sleep(3)
+            self.logger.info(f"After MFA submit, URL: {self.driver.current_url}")
+            
+            # Check if we're past the auth page
+            if 'mfa' in self.driver.current_url.lower():
+                self.logger.error("Still on MFA page after submitting code")
+                self._take_screenshot("mfa_still_on_page")
+                return False
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"MFA handling failed: {e}")
+            self._take_screenshot("mfa_error")
+            return False
+
     def _get_totp_from_1password(self, item_name: str = "ecobee") -> Optional[str]:
         """
-        Retrieve TOTP code from 1Password CLI.
+        Retrieve TOTP code from 1Password CLI (fallback, requires op CLI on host).
         
         Args:
             item_name: Name of the 1Password item containing the TOTP

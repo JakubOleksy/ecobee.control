@@ -3,6 +3,7 @@
 # Get configuration from add-on options
 export ECOBEE_USERNAME=$(bashio::config 'ecobee_username')
 export ECOBEE_PASSWORD=$(bashio::config 'ecobee_password')
+export ECOBEE_TOTP_SECRET=$(bashio::config 'ecobee_totp_secret')
 export WEBDRIVER_HEADLESS=$(bashio::config 'webdriver_headless')
 export LOG_LEVEL=$(bashio::config 'log_level')
 export API_PORT=$(bashio::config 'api_port')
@@ -11,6 +12,7 @@ export API_PORT=$(bashio::config 'api_port')
 cat > /app/.secrets << EOF
 ECOBEE_USERNAME=${ECOBEE_USERNAME}
 ECOBEE_PASSWORD=${ECOBEE_PASSWORD}
+ECOBEE_TOTP_SECRET=${ECOBEE_TOTP_SECRET}
 EOF
 
 # Log startup

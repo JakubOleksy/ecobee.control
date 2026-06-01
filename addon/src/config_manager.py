@@ -55,6 +55,7 @@ class ConfigManager:
                 'ECOBEE_USERNAME': 'ecobee.username',
                 'ECOBEE_PASSWORD': 'ecobee.password',
                 'ECOBEE_2FA_CODE': 'ecobee.two_factor_code',
+                'ECOBEE_TOTP_SECRET': 'ecobee.totp_secret',
                 'ECOBEE_ONEPASSWORD_ITEM': 'ecobee.onepassword_item',
                 'ECOBEE_THERMOSTAT_NAME': 'ecobee.thermostat_name',
                 'WEBDRIVER_HEADLESS': 'webdriver.headless',

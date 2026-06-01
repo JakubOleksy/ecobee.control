@@ -5,12 +5,13 @@ REST API Server for Ecobee Automation - Home Assistant Add-on version
 Provides REST endpoints for Home Assistant integration.
 """
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 import logging
 import sys
 import os
 import threading
 import subprocess
+import glob
 
 # Add src directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
@@ -76,6 +77,23 @@ def run_cli_command(command):
 def health():
     """Health check endpoint."""
     return jsonify({'status': 'ok'}), 200
+
+
+@app.route('/screenshots', methods=['GET'])
+def list_screenshots():
+    """List available debug screenshots."""
+    screenshots_dir = os.path.join(os.path.dirname(__file__), 'screenshots')
+    if not os.path.exists(screenshots_dir):
+        return jsonify({'screenshots': []}), 200
+    files = sorted(glob.glob(os.path.join(screenshots_dir, '*.png')), key=os.path.getmtime, reverse=True)
+    return jsonify({'screenshots': [os.path.basename(f) for f in files]}), 200
+
+
+@app.route('/screenshots/<filename>', methods=['GET'])
+def get_screenshot(filename):
+    """Serve a specific screenshot."""
+    screenshots_dir = os.path.join(os.path.dirname(__file__), 'screenshots')
+    return send_from_directory(screenshots_dir, filename)
 
 
 @app.route('/ecobee/main-floor/aux', methods=['POST'])
