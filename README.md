@@ -24,7 +24,10 @@ A Python-based automation tool for controlling ecobee thermostats through the we
    - Add: `https://github.com/JakubOleksy/ecobee.control`
    - Find "Ecobee Web Control" and click **Install**
 
-2. Configure the add-on with your Ecobee credentials
+2. Configure the add-on with your Ecobee credentials:
+   - `ecobee_username`: Your ecobee account email
+   - `ecobee_password`: Your ecobee account password
+   - `ecobee_totp_secret`: Your TOTP secret (base32 string from your authenticator setup — the `secret=` value from the `otpauth://` URI). Required if MFA/2FA is enabled on your ecobee account.
 3. Start the add-on
 4. Add REST commands to your `configuration.yaml` (see [addon/DOCS.md](addon/DOCS.md))
 
@@ -108,6 +111,7 @@ The application uses a layered configuration system:
 |---------|---------------------|---------|-------------|
 | `ecobee.username` | `ECOBEE_USERNAME` | - | Your ecobee username |
 | `ecobee.password` | `ECOBEE_PASSWORD` | - | Your ecobee password |
+| `ecobee.totp_secret` | `ECOBEE_TOTP_SECRET` | - | TOTP secret for MFA (base32) |
 | `webdriver.headless` | `WEBDRIVER_HEADLESS` | `true` | Run browser in headless mode |
 | `automation.delay` | `AUTOMATION_DELAY` | `2` | Delay between actions (seconds) |
 | `automation.screenshot_on_error` | `SCREENSHOT_ON_ERROR` | `true` | Take screenshots on errors |
