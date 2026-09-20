@@ -158,17 +158,14 @@ class EcobeeAutomation:
                 self.logger.error("Username or password not configured")
                 return False
             
-            # Reuse the persistent authenticated session whenever possible. If
-            # Ecobee redirects to Auth0, fall back to the credential flow.
-            self.driver.get("https://www.ecobee.com/consumerportal/index.html#/devices")
-            time.sleep(3)
-            if 'auth.ecobee.com' not in self.driver.current_url.lower():
-                self.logger.info("Existing Ecobee session is still authenticated")
-                return True
-
+            # Auth0 redirects an already-authenticated persistent profile back
+            # to Ecobee. Otherwise it displays the credential flow.
             self.driver.get(self.login_url)
             self.logger.info(f"Navigated to: {self.driver.current_url}")
             time.sleep(3)  # Wait for page to fully load
+            if 'auth.ecobee.com' not in self.driver.current_url.lower():
+                self.logger.info("Existing Ecobee session is still authenticated")
+                return True
             
             # Debug: Log page structure
             self._log_page_structure()

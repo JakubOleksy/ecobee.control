@@ -2,6 +2,11 @@
 
 All notable changes to this add-on will be documented in this file.
 
+## [1.2.1] - 2026-09-20
+
+### Fixed
++- Validate a saved session through the Auth0 login route; the legacy consumer-portal URL can render a blank page without redirecting.
++
 ## [1.2.0] - 2026-09-20
 
 ### Fixed
