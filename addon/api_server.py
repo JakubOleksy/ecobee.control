@@ -5,13 +5,17 @@ REST API Server for Ecobee Automation - Home Assistant Add-on version
 Provides REST endpoints for Home Assistant integration.
 """
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
 import logging
 import sys
 import os
 import threading
 import subprocess
 import glob
+import json
+import re
+import tempfile
+import time
 
 # Add src directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
@@ -32,6 +36,55 @@ automation_lock = threading.Lock()
 CLI_PATH = os.path.join(os.path.dirname(__file__), 'cli.py')
 
 
+def get_data_dir():
+    """Return the add-on's persistent data directory."""
+    return os.environ.get(
+        'ECOBEE_DATA_DIR',
+        '/data' if os.path.isdir('/data') else os.path.join(os.path.dirname(__file__), 'data')
+    )
+
+
+def get_verification_paths():
+    data_dir = get_data_dir()
+    os.makedirs(data_dir, exist_ok=True)
+    return (
+        os.path.join(data_dir, 'email-verification-pending.json'),
+        os.path.join(data_dir, 'email-verification-code')
+    )
+
+
+def get_pending_verification():
+    """Return active verification metadata, deleting stale state."""
+    pending_path, code_path = get_verification_paths()
+    try:
+        with open(pending_path, 'r') as handle:
+            pending = json.load(handle)
+        if not pending.get('pending') or int(pending.get('expires_at', 0)) <= int(time.time()):
+            raise ValueError('expired')
+        return pending
+    except (FileNotFoundError, ValueError, TypeError, json.JSONDecodeError):
+        for path in (pending_path, code_path):
+            try:
+                os.unlink(path)
+            except FileNotFoundError:
+                pass
+        return None
+
+
+def write_verification_code(code):
+    """Atomically store a six-digit code without putting it in logs."""
+    _, code_path = get_verification_paths()
+    fd, temp_path = tempfile.mkstemp(prefix='.email-code-', dir=os.path.dirname(code_path))
+    try:
+        with os.fdopen(fd, 'w') as handle:
+            handle.write(code)
+        os.chmod(temp_path, 0o600)
+        os.replace(temp_path, code_path)
+    finally:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+
+
 def run_cli_command(command):
     """Run a CLI command and return the result."""
     if not automation_lock.acquire(blocking=False):
@@ -48,7 +101,7 @@ def run_cli_command(command):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            timeout=120,
+            timeout=360,
             cwd=os.path.dirname(__file__)
         )
         
@@ -96,6 +149,35 @@ def get_screenshot(filename):
     return send_from_directory(screenshots_dir, filename)
 
 
+@app.route('/ecobee/verification-status', methods=['GET'])
+def verification_status():
+    """Report whether a CLI run is waiting for an emailed code."""
+    pending = get_pending_verification()
+    if not pending:
+        return jsonify({'pending': False}), 200
+    return jsonify({
+        'pending': True,
+        'expires_at': pending['expires_at'],
+    }), 200
+
+
+@app.route('/ecobee/verification-code', methods=['POST'])
+def verification_code():
+    """Accept a six-digit code only while an Ecobee login is waiting."""
+    pending = get_pending_verification()
+    if not pending:
+        return jsonify({'accepted': False, 'error': 'No email verification is pending'}), 409
+
+    payload = request.get_json(silent=True) or {}
+    code = str(payload.get('code', '')).strip()
+    if not re.fullmatch(r'\d{6}', code):
+        return jsonify({'accepted': False, 'error': 'Code must be exactly six digits'}), 400
+
+    write_verification_code(code)
+    logger.info("Accepted an emailed Ecobee verification code for the pending login")
+    return jsonify({'accepted': True}), 202
+
+
 @app.route('/ecobee/main-floor/aux', methods=['POST'])
 def main_floor_aux():
     """Set Main Floor thermostat to Aux mode."""
@@ -136,5 +218,7 @@ if __name__ == '__main__':
     logger.info("  POST /ecobee/upstairs/aux     - Set Upstairs to Aux")
     logger.info("  POST /ecobee/upstairs/heat    - Set Upstairs to Heat")
     logger.info("  GET  /health                  - Health check")
+    logger.info("  GET  /ecobee/verification-status - Email verification state")
+    logger.info("  POST /ecobee/verification-code   - Submit pending six-digit code")
     
     app.run(host=host, port=port, debug=False)

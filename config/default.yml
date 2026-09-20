@@ -5,6 +5,7 @@ ecobee:
   base_url: "https://www.ecobee.com"
   login_url: "https://www.ecobee.com/consumerportal/index.html"
   portal_url: "https://www.ecobee.com/home/index.html"
+  email_verification_timeout: 300
 
 # WebDriver Configuration
 webdriver:

@@ -13,6 +13,8 @@ A Python-based automation tool for controlling ecobee thermostats through the we
 - **Configurable Settings**: Flexible configuration through environment variables and YAML files
 - **Logging**: Detailed logging for debugging and monitoring
 - **Screenshot Capture**: Automatic screenshots on errors for debugging
+- **Persistent Login**: Reuses an authenticated browser profile across commands and add-on rebuilds
+- **Email Verification Recovery**: Supports Ecobee's six-digit emailed-code challenge without logging the code
 
 ## Installation Options
 
@@ -30,6 +32,22 @@ A Python-based automation tool for controlling ecobee thermostats through the we
    - `ecobee_totp_secret`: Your TOTP secret (base32 string from your authenticator setup — the `secret=` value from the `otpauth://` URI). Required if MFA/2FA is enabled on your ecobee account.
 3. Start the add-on
 4. Add REST commands to your `configuration.yaml` (see [addon/DOCS.md](addon/DOCS.md))
+
+If Ecobee asks to verify a new browser, start one command and check:
+
+```bash
+curl http://HOME_ASSISTANT_IP:5000/ecobee/verification-status
+```
+
+While it reports `pending: true`, submit the six-digit code from Ecobee's email:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' \
+  -d '{"code":"123456"}' \
+  http://HOME_ASSISTANT_IP:5000/ecobee/verification-code
+```
+
+The endpoint accepts a code only during a short-lived pending login, stores it with restrictive permissions, and never echoes or logs it. The persistent Chrome profile normally prevents repeated prompts afterward.
 
 ### Option 2: Standalone CLI Tool
 

@@ -6,3 +6,4 @@ beautifulsoup4==4.12.2
 schedule==1.2.0
 pyyaml==6.0.1
 flask==3.0.0
+pyotp==2.9.0

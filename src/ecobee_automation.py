@@ -11,6 +11,8 @@ import time
 import logging
 import subprocess
 import json
+import re
+import tempfile
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
 import pyotp
@@ -89,6 +91,23 @@ class EcobeeAutomation:
             chrome_options.add_argument('--window-size=1920,1080')
             chrome_options.add_argument('--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36')
             chrome_options.add_argument('--remote-debugging-port=0')
+
+            # Keep the authenticated Ecobee session between one-shot CLI runs.
+            # Home Assistant add-ons persist /data across rebuilds and restarts.
+            data_dir = os.environ.get(
+                'ECOBEE_DATA_DIR',
+                '/data' if os.path.isdir('/data') else os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data'
+                )
+            )
+            profile_dir = os.environ.get(
+                'ECOBEE_CHROME_PROFILE_DIR',
+                os.path.join(data_dir, 'chrome-profile')
+            )
+            os.makedirs(profile_dir, exist_ok=True)
+            chrome_options.add_argument(f'--user-data-dir={profile_dir}')
+            chrome_options.add_argument('--profile-directory=Default')
+            self.logger.info(f"Using persistent Chrome profile: {profile_dir}")
             
             # Detect Chrome/Chromium binary location
             chrome_binary = os.environ.get('CHROME_BIN')
@@ -139,6 +158,14 @@ class EcobeeAutomation:
                 self.logger.error("Username or password not configured")
                 return False
             
+            # Reuse the persistent authenticated session whenever possible. If
+            # Ecobee redirects to Auth0, fall back to the credential flow.
+            self.driver.get("https://www.ecobee.com/consumerportal/index.html#/devices")
+            time.sleep(3)
+            if 'auth.ecobee.com' not in self.driver.current_url.lower():
+                self.logger.info("Existing Ecobee session is still authenticated")
+                return True
+
             self.driver.get(self.login_url)
             self.logger.info(f"Navigated to: {self.driver.current_url}")
             time.sleep(3)  # Wait for page to fully load
@@ -211,7 +238,19 @@ class EcobeeAutomation:
             time.sleep(2)
             self.logger.info(f"After login, current URL: {self.driver.current_url}")
             
-            # Handle MFA/TOTP challenge
+            # Ecobee/Auth0 may require an emailed code for a new browser. The
+            # local add-on API provides that code through a short-lived file.
+            if self._is_email_verification_page():
+                self.logger.info("Email verification challenge detected")
+                if not self._handle_email_verification():
+                    self.logger.error("Email verification challenge failed")
+                    self._take_screenshot("email_verification_failed")
+                    return False
+                time.sleep(2)
+                self.logger.info(f"After email verification, current URL: {self.driver.current_url}")
+
+            # Handle MFA/TOTP challenge, including one that follows email
+            # verification.
             if 'mfa-otp-challenge' in self.driver.current_url:
                 self.logger.info("MFA challenge detected, generating TOTP code...")
                 if not self._handle_mfa_challenge():
@@ -238,6 +277,126 @@ class EcobeeAutomation:
             self.logger.error(f"Login failed: {e}")
             self._take_screenshot("login_error")
             return False
+
+    def _verification_paths(self):
+        """Return shared pending/code paths used by the add-on API."""
+        data_dir = os.environ.get(
+            'ECOBEE_DATA_DIR',
+            '/data' if os.path.isdir('/data') else os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data'
+            )
+        )
+        os.makedirs(data_dir, exist_ok=True)
+        return (
+            os.path.join(data_dir, 'email-verification-pending.json'),
+            os.path.join(data_dir, 'email-verification-code')
+        )
+
+    def _is_email_verification_page(self) -> bool:
+        """Detect Ecobee/Auth0's emailed six-digit-code challenge."""
+        try:
+            url = self.driver.current_url.lower()
+            body = self.driver.find_element(By.TAG_NAME, 'body').text.lower()
+            return (
+                'verify your email' in body
+                or ("sent an email" in body and '6-digit code' in body)
+                or ('custom-prompt' in url and 'code' in body and 'email' in body)
+            )
+        except Exception as e:
+            self.logger.debug(f"Could not inspect email verification page: {e}")
+            return False
+
+    def _handle_email_verification(self) -> bool:
+        """Wait for a short-lived code from the local add-on API and submit it."""
+        pending_path, code_path = self._verification_paths()
+        timeout = int(self.config.get('ecobee.email_verification_timeout', 300))
+        timeout = max(30, min(timeout, 600))
+        now = int(time.time())
+        pending = {
+            'pending': True,
+            'created_at': now,
+            'expires_at': now + timeout,
+        }
+
+        # Never consume a code left over from a previous challenge.
+        try:
+            os.unlink(code_path)
+        except FileNotFoundError:
+            pass
+
+        fd, temp_path = tempfile.mkstemp(prefix='.email-verification-', dir=os.path.dirname(pending_path))
+        try:
+            with os.fdopen(fd, 'w') as handle:
+                json.dump(pending, handle)
+            os.chmod(temp_path, 0o600)
+            os.replace(temp_path, pending_path)
+        finally:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+
+        self.logger.info(
+            f"Waiting up to {timeout} seconds for the emailed verification code "
+            "through POST /ecobee/verification-code"
+        )
+
+        try:
+            deadline = time.time() + timeout
+            code = None
+            while time.time() < deadline:
+                try:
+                    with open(code_path, 'r') as handle:
+                        candidate = handle.read().strip()
+                    os.unlink(code_path)
+                    if re.fullmatch(r'\d{6}', candidate):
+                        code = candidate
+                        break
+                    self.logger.warning("Ignored an invalid email verification code payload")
+                except FileNotFoundError:
+                    pass
+                time.sleep(1)
+
+            if not code:
+                self.logger.error("Timed out waiting for the emailed verification code")
+                return False
+
+            code_field = self._find_input_field(
+                ['verification', 'code', 'otp'], timeout=5
+            )
+            if not code_field:
+                for candidate in self.driver.find_elements(By.TAG_NAME, 'input'):
+                    input_type = (candidate.get_attribute('type') or '').lower()
+                    maxlength = candidate.get_attribute('maxlength') or ''
+                    if candidate.is_displayed() and (
+                        input_type in ('text', 'tel', 'number', '') or maxlength == '6'
+                    ):
+                        code_field = candidate
+                        break
+
+            if not code_field:
+                self.logger.error("Could not find the emailed-code input field")
+                self._log_page_structure()
+                return False
+
+            code_field.clear()
+            code_field.send_keys(code)
+            submit_button = self._find_submit_button()
+            if submit_button:
+                submit_button.click()
+            else:
+                from selenium.webdriver.common.keys import Keys
+                code_field.send_keys(Keys.RETURN)
+
+            time.sleep(4)
+            if self._is_email_verification_page():
+                self.logger.error("Email verification page remained after code submission")
+                return False
+            return True
+        finally:
+            for path in (pending_path, code_path):
+                try:
+                    os.unlink(path)
+                except FileNotFoundError:
+                    pass
 
     def _handle_mfa_challenge(self) -> bool:
         """
