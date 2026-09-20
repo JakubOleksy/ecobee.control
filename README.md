@@ -33,7 +33,12 @@ A Python-based automation tool for controlling ecobee thermostats through the we
 3. Start the add-on
 4. Add REST commands to your `configuration.yaml` (see [addon/DOCS.md](addon/DOCS.md))
 
-If Ecobee asks to verify a new browser, start one command and check:
+If Ecobee asks to verify a new browser, open **Ecobee Web Control** from the
+add-on page. The web UI checks for a pending challenge every five seconds and
+shows a six-digit code form only while the login is waiting. Enter the newest
+code from Ecobee's email and select **Continue Ecobee login**.
+
+The same flow remains available through the REST API. Start one command and check:
 
 ```bash
 curl http://HOME_ASSISTANT_IP:5000/ecobee/verification-status
@@ -47,7 +52,7 @@ curl -X POST -H 'Content-Type: application/json' \
   http://HOME_ASSISTANT_IP:5000/ecobee/verification-code
 ```
 
-The endpoint accepts a code only during a short-lived pending login, stores it with restrictive permissions, and never echoes or logs it. The persistent Chrome profile normally prevents repeated prompts afterward.
+The UI and endpoint accept a code only during a short-lived pending login, store it with restrictive permissions, and never echo or log it. The persistent Chrome profile normally prevents repeated prompts afterward.
 
 ### Option 2: Standalone CLI Tool
 

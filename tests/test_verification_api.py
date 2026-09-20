@@ -57,6 +57,36 @@ class VerificationApiTest(unittest.TestCase):
         response = self.client.get('/ecobee/verification-status')
         self.assertEqual({'pending': False}, response.get_json())
 
+    def test_ui_shows_idle_state_without_pending_challenge(self):
+        response = self.client.get('/')
+        self.assertEqual(200, response.status_code)
+        self.assertIn(b'No verification code is needed', response.data)
+        self.assertNotIn(b'name="code"', response.data)
+        self.assertEqual('no-store', response.headers['Cache-Control'])
+
+    def test_ui_shows_code_form_during_pending_challenge(self):
+        self.write_pending()
+        response = self.client.get('/')
+        self.assertEqual(200, response.status_code)
+        self.assertIn(b'Email verification is required', response.data)
+        self.assertIn(b'name="code"', response.data)
+
+    def test_ui_rejects_malformed_code(self):
+        self.write_pending()
+        response = self.client.post('/', data={'code': '12ab56'})
+        self.assertEqual(400, response.status_code)
+        self.assertIn(b'Code must be exactly six digits', response.data)
+
+    def test_ui_accepts_code_without_echoing_it(self):
+        self.write_pending()
+        response = self.client.post('/', data={'code': '123456'})
+        self.assertEqual(202, response.status_code)
+        self.assertIn(b'Code accepted', response.data)
+        self.assertNotIn(b'123456', response.data)
+        _, code_path = api_server.get_verification_paths()
+        with open(code_path) as handle:
+            self.assertEqual('123456', handle.read())
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -2,6 +2,12 @@
 
 All notable changes to this add-on will be documented in this file.
 
+## [1.3.0] - 2026-09-20
+
+### Added
++- Add a Home Assistant add-on web UI that displays a six-digit email-code form only while Ecobee login verification is pending.
++- Enable Home Assistant ingress and the add-on **Open Web UI** action.
++
 ## [1.2.6] - 2026-09-20
 
 ### Fixed

@@ -11,6 +11,7 @@ Control your Ecobee thermostats directly through the web interface using Seleniu
 - ✅ Runs completely local in your Home Assistant
 - ✅ Reuses a persistent browser login across commands and add-on rebuilds
 - ✅ Supports Ecobee's emailed six-digit verification challenge
+- ✅ Provides a Home Assistant add-on UI for manual email-code entry
 
 ## Installation
 
@@ -106,7 +107,13 @@ The add-on exposes these REST endpoints:
 
 ## First Login or Reverification
 
-When Ecobee requires a new-browser verification, the thermostat command waits for up to five minutes. Check the status and submit the code from Ecobee's email:
+When Ecobee requires a new-browser verification, the thermostat command waits
+for up to five minutes. Open the add-on page and select **Open Web UI**. The UI
+refreshes automatically and shows a six-digit form while verification is
+pending. Enter the newest code from Ecobee's email and select **Continue Ecobee
+login**.
+
+The same flow is available through the REST API:
 
 ```bash
 curl http://HOME_ASSISTANT_IP:5000/ecobee/verification-status
@@ -115,7 +122,7 @@ curl -X POST -H 'Content-Type: application/json' \
   http://HOME_ASSISTANT_IP:5000/ecobee/verification-code
 ```
 
-The code is accepted only while a verification challenge is active, is stored briefly with restrictive permissions, and is not logged or returned. After verification, the add-on reuses its browser profile so normal automation does not require another code.
+The code is accepted only while a verification challenge is active, is stored briefly with restrictive permissions, and is not logged, displayed, or returned. After verification, the add-on reuses its browser profile so normal automation does not require another code.
 
 ## Support
 
