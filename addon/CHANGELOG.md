@@ -2,6 +2,12 @@
 
 All notable changes to this add-on will be documented in this file.
 
+## [1.2.3] - 2026-09-20
+
+### Fixed
++- Resume an email-verification page left in the persistent browser profile before searching for username controls.
++- Choose the email page's Continue button explicitly instead of its Resend submit control.
++
 ## [1.2.2] - 2026-09-20
 
 ### Fixed

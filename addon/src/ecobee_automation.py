@@ -166,6 +166,25 @@ class EcobeeAutomation:
             if 'auth.ecobee.com' not in self.driver.current_url.lower():
                 self.logger.info("Existing Ecobee session is still authenticated")
                 return True
+
+            # A previous attempt may have reached the emailed-code page before
+            # the browser process exited. Resume that challenge before looking
+            # for username/password controls.
+            if self._is_email_verification_page():
+                self.logger.info("Resuming pending email verification challenge")
+                if not self._handle_email_verification():
+                    self.logger.error("Email verification challenge failed")
+                    self._take_screenshot("email_verification_failed")
+                    return False
+                time.sleep(2)
+                if 'mfa-otp-challenge' in self.driver.current_url:
+                    if not self._handle_mfa_challenge():
+                        return False
+                if 'auth.ecobee.com' in self.driver.current_url.lower():
+                    self.logger.error("Login failed - still on auth page after email verification")
+                    return False
+                self.logger.info("Login successful after email verification")
+                return True
             
             # Debug: Log page structure
             self._log_page_structure()
@@ -376,7 +395,18 @@ class EcobeeAutomation:
 
             code_field.clear()
             code_field.send_keys(code)
-            submit_button = self._find_submit_button()
+            # Auth0's email page uses a visible type=button Continue control,
+            # while Resend is also a visible submit control. Select by text so
+            # the code is submitted instead of requesting another code.
+            submit_button = None
+            for button in self.driver.find_elements(By.TAG_NAME, 'button'):
+                if (
+                    button.is_displayed()
+                    and button.is_enabled()
+                    and (button.text or '').strip().lower() in ('continue', 'verify')
+                ):
+                    submit_button = button
+                    break
             if submit_button:
                 submit_button.click()
             else:
