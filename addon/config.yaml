@@ -1,5 +1,5 @@
 name: "Ecobee Web Control"
-version: "1.2.3"
+version: "1.2.4"
 slug: "ecobee_web_control"
 description: "Control Ecobee thermostats via web interface automation"
 url: "https://github.com/JakubOleksy/ecobee.control"

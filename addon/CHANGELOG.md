@@ -2,6 +2,12 @@
 
 All notable changes to this add-on will be documented in this file.
 
+## [1.2.4] - 2026-09-20
+
+### Fixed
++- Detect Auth0's new custom authenticator-code prompt, including one left in the persistent profile.
++- Select “Remember this device for 30 days” before submitting the authenticator code.
++
 ## [1.2.3] - 2026-09-20
 
 ### Fixed

@@ -177,13 +177,23 @@ class EcobeeAutomation:
                     self._take_screenshot("email_verification_failed")
                     return False
                 time.sleep(2)
-                if 'mfa-otp-challenge' in self.driver.current_url:
+                if self._is_totp_challenge_page():
                     if not self._handle_mfa_challenge():
                         return False
                 if 'auth.ecobee.com' in self.driver.current_url.lower():
                     self.logger.error("Login failed - still on auth page after email verification")
                     return False
                 self.logger.info("Login successful after email verification")
+                return True
+
+            if self._is_totp_challenge_page():
+                self.logger.info("Resuming pending authenticator-code challenge")
+                if not self._handle_mfa_challenge():
+                    return False
+                if 'auth.ecobee.com' in self.driver.current_url.lower():
+                    self.logger.error("Login failed - still on auth page after authenticator verification")
+                    return False
+                self.logger.info("Login successful after authenticator verification")
                 return True
             
             # Debug: Log page structure
@@ -267,7 +277,7 @@ class EcobeeAutomation:
 
             # Handle MFA/TOTP challenge, including one that follows email
             # verification.
-            if 'mfa-otp-challenge' in self.driver.current_url:
+            if self._is_totp_challenge_page():
                 self.logger.info("MFA challenge detected, generating TOTP code...")
                 if not self._handle_mfa_challenge():
                     self.logger.error("MFA challenge failed")
@@ -425,6 +435,20 @@ class EcobeeAutomation:
                 except FileNotFoundError:
                     pass
 
+    def _is_totp_challenge_page(self) -> bool:
+        """Detect Auth0's authenticator-app one-time-password prompt."""
+        try:
+            url = self.driver.current_url.lower()
+            body = self.driver.find_element(By.TAG_NAME, 'body').text.lower()
+            return (
+                'mfa-otp-challenge' in url
+                or 'one-time password application' in body
+                or ('verify your identity' in body and 'one-time code' in body)
+            )
+        except Exception as e:
+            self.logger.debug(f"Could not inspect authenticator challenge page: {e}")
+            return False
+
     def _handle_mfa_challenge(self) -> bool:
         """
         Handle the MFA/TOTP challenge page.
@@ -467,6 +491,13 @@ class EcobeeAutomation:
             otp_field.send_keys(code)
             time.sleep(1)
             
+            # Persist the verified browser when Auth0 offers the option.
+            for checkbox in self.driver.find_elements(By.CSS_SELECTOR, 'input[type="checkbox"]'):
+                if checkbox.is_displayed() and checkbox.is_enabled() and not checkbox.is_selected():
+                    checkbox.click()
+                    self.logger.info("Enabled Auth0's remember-device option")
+                    break
+
             # Submit
             submit_button = self._find_submit_button()
             if submit_button:
@@ -479,8 +510,8 @@ class EcobeeAutomation:
             time.sleep(3)
             self.logger.info(f"After MFA submit, URL: {self.driver.current_url}")
             
-            # Check if we're past the auth page
-            if 'mfa' in self.driver.current_url.lower():
+            # Check if we're past the authenticator challenge.
+            if self._is_totp_challenge_page():
                 self.logger.error("Still on MFA page after submitting code")
                 self._take_screenshot("mfa_still_on_page")
                 return False
