@@ -463,18 +463,41 @@ class EcobeeAutomation:
                 self.logger.error("No TOTP secret configured (set ECOBEE_TOTP_SECRET)")
                 return False
             
-            # Avoid submitting a code during the final seconds of its window;
-            # Auth0 may validate it after the 30-second rollover.
+            # Avoid reusing a code that Auth0 already accepted and avoid the
+            # final seconds of a window. The counter is not secret and is kept
+            # in /data so back-to-back one-shot CLI runs coordinate safely.
             totp = pyotp.TOTP(totp_secret)
+            pending_path, _ = self._verification_paths()
+            counter_path = os.path.join(os.path.dirname(pending_path), 'last-totp-counter')
+            current_counter = int(time.time()) // totp.interval
+            try:
+                with open(counter_path, 'r') as handle:
+                    last_counter = int(handle.read().strip())
+            except (FileNotFoundError, ValueError):
+                last_counter = -1
+
             seconds_remaining = totp.interval - (time.time() % totp.interval)
-            if seconds_remaining < 8:
+            if current_counter <= last_counter or seconds_remaining < 8:
                 wait_seconds = seconds_remaining + 1
                 self.logger.info(
                     f"Waiting {wait_seconds:.1f}s for a fresh authenticator-code window"
                 )
                 time.sleep(wait_seconds)
+
             code = totp.now()
-            self.logger.info(f"Generated TOTP code: {code[:2]}****")
+            current_counter = int(time.time()) // totp.interval
+            fd, temp_path = tempfile.mkstemp(
+                prefix='.totp-counter-', dir=os.path.dirname(counter_path)
+            )
+            try:
+                with os.fdopen(fd, 'w') as handle:
+                    handle.write(str(current_counter))
+                os.chmod(temp_path, 0o600)
+                os.replace(temp_path, counter_path)
+            finally:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+            self.logger.info("Generated a fresh authenticator code")
             
             # Find the OTP input field
             otp_field = self._find_input_field(['code', 'otp', 'totp', 'mfa', 'verification'], timeout=10)

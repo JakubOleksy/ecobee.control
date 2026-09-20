@@ -2,6 +2,12 @@
 
 All notable changes to this add-on will be documented in this file.
 
+## [1.2.6] - 2026-09-20
+
+### Fixed
++- Track the last TOTP counter under `/data` so back-to-back commands never reuse a code Auth0 has already accepted.
++- Stop logging any portion of generated authenticator codes.
++
 ## [1.2.5] - 2026-09-20
 
 ### Fixed
