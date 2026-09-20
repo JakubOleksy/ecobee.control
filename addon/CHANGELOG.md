@@ -2,6 +2,11 @@
 
 All notable changes to this add-on will be documented in this file.
 
+## [1.2.2] - 2026-09-20
+
+### Fixed
++- Submit the visible Auth0 Continue button instead of a hidden submit control on the email-code page.
++
 ## [1.2.1] - 2026-09-20
 
 ### Fixed

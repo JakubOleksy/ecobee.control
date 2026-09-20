@@ -634,20 +634,16 @@ class EcobeeAutomation:
     def _find_submit_button(self, timeout: int = 5):
         """Find the submit button on the page."""
         try:
-            # Try finding submit button by type
-            try:
-                button = self.driver.find_element(By.CSS_SELECTOR, 'button[type="submit"]')
-                self.logger.info("Found submit button by type=submit")
-                return button
-            except NoSuchElementException:
-                pass
-            
-            try:
-                button = self.driver.find_element(By.CSS_SELECTOR, 'input[type="submit"]')
-                self.logger.info("Found submit input by type=submit")
-                return button
-            except NoSuchElementException:
-                pass
+            # Prefer a visible, enabled submit control. Auth0 renders a hidden
+            # submit button before the visible Continue button on custom prompts.
+            for selector, description in (
+                ('button[type="submit"]', 'button'),
+                ('input[type="submit"]', 'input'),
+            ):
+                for button in self.driver.find_elements(By.CSS_SELECTOR, selector):
+                    if button.is_displayed() and button.is_enabled():
+                        self.logger.info(f"Found visible submit {description}")
+                        return button
             
             # Search buttons by text content
             buttons = self.driver.find_elements(By.TAG_NAME, 'button')
