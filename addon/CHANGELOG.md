@@ -2,6 +2,13 @@
 
 All notable changes to this add-on will be documented in this file.
 
+## [1.4.0] - 2026-09-20
+
+### Added
++- Surface thermostat-command failures, timeouts, concurrency conflicts, and unexpected API errors as native Home Assistant persistent notifications and `ecobee_web_control` System Log errors.
++- Notify Home Assistant immediately when Ecobee requires an emailed verification code.
++- Clear active Ecobee notifications after a successful thermostat command while retaining System Log history.
++
 ## [1.3.0] - 2026-09-20
 
 ### Added

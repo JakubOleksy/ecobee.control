@@ -4,6 +4,7 @@ import sys
 import tempfile
 import time
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 
@@ -86,6 +87,27 @@ class VerificationApiTest(unittest.TestCase):
         _, code_path = api_server.get_verification_paths()
         with open(code_path) as handle:
             self.assertEqual('123456', handle.read())
+
+    def test_failed_command_surfaces_home_assistant_error(self):
+        completed = SimpleNamespace(returncode=1, stdout='browser failed')
+        with patch('api_server.subprocess.run', return_value=completed), patch(
+            'api_server.report_error'
+        ) as report_error:
+            result, status = api_server.run_cli_command('main-floor-aux')
+        self.assertEqual(500, status)
+        self.assertFalse(result['success'])
+        report_error.assert_called_once()
+        self.assertIn('Main Floor', report_error.call_args.args[1])
+
+    def test_successful_command_clears_active_notifications(self):
+        completed = SimpleNamespace(returncode=0, stdout='ok')
+        with patch('api_server.subprocess.run', return_value=completed), patch(
+            'api_server.clear_notifications'
+        ) as clear_notifications:
+            result, status = api_server.run_cli_command('main-floor-heat')
+        self.assertEqual(200, status)
+        self.assertTrue(result['success'])
+        clear_notifications.assert_called_once_with()
 
 
 if __name__ == '__main__':

@@ -28,6 +28,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.config_manager import ConfigManager
 from src.exceptions import EcobeeAutomationError
+from src.ha_notifications import notify_verification_required
 
 
 @dataclass
@@ -364,6 +365,7 @@ class EcobeeAutomation:
             f"Waiting up to {timeout} seconds for the emailed verification code "
             "through POST /ecobee/verification-code"
         )
+        notify_verification_required()
 
         try:
             deadline = time.time() + timeout

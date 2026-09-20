@@ -6,6 +6,7 @@ Provides REST endpoints for Home Assistant integration.
 """
 
 from flask import Flask, jsonify, render_template_string, request, send_from_directory
+from werkzeug.exceptions import HTTPException
 import logging
 import sys
 import os
@@ -19,6 +20,8 @@ import time
 
 # Add src directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
+from src.ha_notifications import clear_notifications, report_error, reporting_available
 
 app = Flask(__name__)
 
@@ -148,9 +151,22 @@ def validate_and_write_verification_code(code):
     return None, 202
 
 
+def command_label(command):
+    """Return a human-readable label for an API command."""
+    return {
+        'main-floor-aux': 'Set Main Floor to Aux Heat',
+        'main-floor-heat': 'Set Main Floor to Heat',
+        'upstairs-aux': 'Set Upstairs to Aux Heat',
+        'upstairs-heat': 'Set Upstairs to Heat',
+    }.get(command, command)
+
+
 def run_cli_command(command):
     """Run a CLI command and return the result."""
+    label = command_label(command)
     if not automation_lock.acquire(blocking=False):
+        message = f'{label} could not start because another Ecobee command is already running.'
+        report_error('Ecobee command could not start', message)
         return {'success': False, 'error': 'Another automation is already running'}, 409
     
     try:
@@ -174,19 +190,45 @@ def run_cli_command(command):
         
         if result.returncode == 0:
             logger.info(f"Command succeeded: {command}")
+            clear_notifications()
             return {'success': True, 'output': result.stdout}, 200
         else:
             logger.error(f"Command failed with return code {result.returncode}")
+            report_error(
+                'Ecobee automation failed',
+                f'{label} failed with exit code {result.returncode}. Open the Ecobee Web Control add-on log for details.',
+            )
             return {'success': False, 'error': result.stdout, 'return_code': result.returncode}, 500
             
     except subprocess.TimeoutExpired:
         logger.error(f"Command timed out: {command}")
+        report_error(
+            'Ecobee automation timed out',
+            f'{label} did not finish within six minutes. Open the Ecobee Web Control add-on log for details.',
+        )
         return {'success': False, 'error': 'Command timed out'}, 500
     except Exception as e:
         logger.error(f"Error running command: {e}", exc_info=True)
+        report_error(
+            'Ecobee automation error',
+            f'{label} hit an unexpected internal error. Open the Ecobee Web Control add-on log for details.',
+        )
         return {'success': False, 'error': str(e)}, 500
     finally:
         automation_lock.release()
+
+
+@app.errorhandler(Exception)
+def unexpected_api_error(error):
+    """Surface otherwise-unhandled server failures without treating 4xx as faults."""
+    if isinstance(error, HTTPException):
+        return error
+    logger.exception("Unhandled Ecobee Web Control API error")
+    report_error(
+        'Ecobee Web Control error',
+        'The add-on hit an unexpected API error. Open the Ecobee Web Control add-on log for details.',
+    )
+    return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 @app.route('/health', methods=['GET'])
@@ -293,6 +335,10 @@ if __name__ == '__main__':
     host = '0.0.0.0'
     
     logger.info(f"Starting Ecobee API server on {host}:{port}")
+    if reporting_available():
+        logger.info("Home Assistant error reporting is ready")
+    else:
+        logger.warning("Home Assistant error reporting is unavailable; failures will remain in the add-on log")
     logger.info("Available endpoints:")
     logger.info("  POST /ecobee/main-floor/aux   - Set Main Floor to Aux")
     logger.info("  POST /ecobee/main-floor/heat  - Set Main Floor to Heat")

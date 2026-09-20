@@ -12,6 +12,7 @@ Control your Ecobee thermostats directly through the web interface using Seleniu
 - ✅ Reuses a persistent browser login across commands and add-on rebuilds
 - ✅ Supports Ecobee's emailed six-digit verification challenge
 - ✅ Provides a Home Assistant add-on UI for manual email-code entry
+- ✅ Surfaces failures as Home Assistant notifications and System Log errors
 
 ## Installation
 
@@ -123,6 +124,18 @@ curl -X POST -H 'Content-Type: application/json' \
 ```
 
 The code is accepted only while a verification challenge is active, is stored briefly with restrictive permissions, and is not logged, displayed, or returned. After verification, the add-on reuses its browser profile so normal automation does not require another code.
+
+## Home Assistant Error Reporting
+
+When email verification is required, Home Assistant displays an actionable persistent notification that points to **Ecobee Web Control → Open Web UI**.
+
+A thermostat-command failure, timeout, concurrency conflict, or unexpected API error:
+
+1. Creates or updates a persistent **Ecobee** notification.
+2. Writes an `ecobee_web_control` error to **Settings → System → Logs**.
+3. Keeps detailed browser diagnostics in the add-on log without putting credentials or verification codes in the Home Assistant message.
+
+A later successful thermostat command dismisses active Ecobee notifications. System Log entries remain available as historical evidence.
 
 ## Support
 

@@ -15,6 +15,7 @@ A Python-based automation tool for controlling ecobee thermostats through the we
 - **Screenshot Capture**: Automatic screenshots on errors for debugging
 - **Persistent Login**: Reuses an authenticated browser profile across commands and add-on rebuilds
 - **Email Verification Recovery**: Supports Ecobee's six-digit emailed-code challenge without logging the code
+- **Native Home Assistant Alerts**: Runtime failures create a persistent notification and a Home Assistant System Log error
 
 ## Installation Options
 
@@ -53,6 +54,8 @@ curl -X POST -H 'Content-Type: application/json' \
 ```
 
 The UI and endpoint accept a code only during a short-lived pending login, store it with restrictive permissions, and never echo or log it. The persistent Chrome profile normally prevents repeated prompts afterward.
+
+If a login needs an email code, Home Assistant creates an actionable persistent notification. Any thermostat-command failure, timeout, or unexpected add-on error also creates a persistent notification and writes an `ecobee_web_control` error to **Settings → System → Logs**. A later successful thermostat command clears active Ecobee notifications; the System Log entry remains available as history.
 
 ### Option 2: Standalone CLI Tool
 
