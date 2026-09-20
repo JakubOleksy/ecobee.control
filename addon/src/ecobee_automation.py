@@ -463,8 +463,16 @@ class EcobeeAutomation:
                 self.logger.error("No TOTP secret configured (set ECOBEE_TOTP_SECRET)")
                 return False
             
-            # Generate current TOTP code
+            # Avoid submitting a code during the final seconds of its window;
+            # Auth0 may validate it after the 30-second rollover.
             totp = pyotp.TOTP(totp_secret)
+            seconds_remaining = totp.interval - (time.time() % totp.interval)
+            if seconds_remaining < 8:
+                wait_seconds = seconds_remaining + 1
+                self.logger.info(
+                    f"Waiting {wait_seconds:.1f}s for a fresh authenticator-code window"
+                )
+                time.sleep(wait_seconds)
             code = totp.now()
             self.logger.info(f"Generated TOTP code: {code[:2]}****")
             

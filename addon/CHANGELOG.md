@@ -2,6 +2,11 @@
 
 All notable changes to this add-on will be documented in this file.
 
+## [1.2.5] - 2026-09-20
+
+### Fixed
++- Wait for a fresh TOTP window when fewer than eight seconds remain, preventing intermittent Auth0 rejection at the 30-second boundary.
++
 ## [1.2.4] - 2026-09-20
 
 ### Fixed
